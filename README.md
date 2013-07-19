@@ -53,6 +53,43 @@ every :day, :at => '12:20am', :roles => [:app] do
 end
 ```
 
+### Fcron support
+
+Whenever provides basic support for Fcron. You can switch whenever to use fcron by specifying the -d option:
+
+```sh
+// Show schedule.rb in fcron syntax
+$ whenever -d fcron
+// List current schedule in fcrontab
+$ whenever -d fcron --config-file /etc/fcron.conf -l
+```
+
+As Fcron is compatible with cron itself, your schedule.rb can be specified in the same way as for Vixie cron. Options can be specified by passing the :with parameter. 
+You can also pass an elapsed time string to tell fcron to execute a task once every m minutes of fcron's execution. Examples:
+
+```ruby
+# Translates to "@nice(10),serial 3w2d5h1 /bin/bash -l -c 'echo ladeeda'"
+every '3w2d5h1', with: ['nice(10)', :serial] do
+  command 'echo ladeeda'
+end
+
+# Translates to "@ 12d /bin/bash -l -c 'echo ladeeda'"
+every :day do # Shortcuts available: :hour, :day, :week, :month, :year
+  command 'echo ladeeda'
+end
+
+# Falls back to the old cron implementation
+every :day, :at => '12pm' do 
+  runner "Task.do_something_great"
+end
+
+# Raw Fcron syntax is supported, translates to "%hours,runatreboot * 0-22 * * * /bin/bash -l -c 'echo ladeeda'"
+every '%hours * 0-22 * * *', with: :runatreboot do
+  command 'echo ladeeda'
+end
+
+```
+
 ### Define your own job types
 
 Whenever ships with three pre-defined job types: command, runner, and rake. You can define your own with `job_type`.

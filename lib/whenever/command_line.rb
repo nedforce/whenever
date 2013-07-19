@@ -10,6 +10,7 @@ module Whenever
     def initialize(options={})
       @options = options
       
+      @options[:cron]       ||= 'cron'      
       @options[:file]       ||= 'config/schedule.rb'
       @options[:cut]        ||= 0
       @options[:identifier] ||= default_identifier
@@ -32,7 +33,10 @@ module Whenever
     end
     
     def run
-      if @options[:update] || @options[:clear]
+      if @options[:read]
+        puts read_crontab
+        exit(0)        
+      elsif @options[:update] || @options[:clear]
         write_crontab(updated_crontab)
       elsif @options[:write]
         write_crontab(whenever_cron)
@@ -55,14 +59,21 @@ module Whenever
       @whenever_cron ||= [comment_open, Whenever.cron(@options), comment_close].compact.join("\n") + "\n"
     end
     
+    def crontab_command
+      @crontab_command ||= begin
+        command = [@options[:cron] == 'fcron' ? 'fcrontab' : 'crontab']
+        command << "-c #{@options[:config_file]}" if @options[:config_file]
+        command << "-u #{@options[:user]}" if @options[:user]
+        command.join(' ')
+      end
+    end
+    
     def read_crontab
       return @current_crontab if @current_crontab
       
-      command = ['crontab -l']
-      command << "-u #{@options[:user]}" if @options[:user]
-      
-      command_results  = %x[#{command.join(' ')} 2> /dev/null]
-      @current_crontab = $?.exitstatus.zero? ? prepare(command_results) : ''
+      command = "#{crontab_command} -l"
+      command_results  = `#{command} 2>&1`
+      @current_crontab = $?.exitstatus.zero? ? prepare(command_results) : (@options[:read] ? command_results : '')
     end
     
     def write_crontab(contents)
@@ -70,18 +81,16 @@ module Whenever
       tmp_cron_file << contents
       tmp_cron_file.fsync
 
-      command = ['crontab']
-      command << "-u #{@options[:user]}" if @options[:user]
-      command << tmp_cron_file.path
-
-      if system(command.join(' '))
+      command = "#{crontab_command} #{tmp_cron_file.path}"
+      command_results  = `#{command} 2>&1`
+      if $?.exitstatus.zero?
         action = 'written' if @options[:write]
         action = 'updated' if @options[:update]
         puts "[write] crontab file #{action}"
         tmp_cron_file.close!
         exit(0)
       else
-        warn "[fail] Couldn't write crontab; try running `whenever' with no options to ensure your schedule file is valid."
+        warn "[fail] Couldn't write crontab; try running `whenever' with no options to ensure your schedule file is valid. (#{command_results})"
         tmp_cron_file.close!
         exit(1)
       end

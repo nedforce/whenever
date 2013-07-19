@@ -10,7 +10,8 @@ module Whenever
       end
 
       pre_set(options[:set])
-
+      
+      @cron = options[:cron]      
       @roles = options[:roles] || []
 
       setup_file = File.expand_path('../setup.rb', __FILE__)
@@ -106,6 +107,8 @@ module Whenever
     # them into one that runs on the 2nd minute at the 3rd and 4th hour.
     #
     def combine(entries)
+      return entries if @cron == 'fcron'
+      
       entries.map! { |entry| entry.split(/ +/, 6) }
       0.upto(4) do |f|
         (entries.length-1).downto(1) do |i|
@@ -124,6 +127,13 @@ module Whenever
 
       entries.map { |entry| entry.join(' ') }
     end
+    
+    def cron_class
+      case @cron
+        when 'fcron' then Whenever::Output::Fcron
+        else Whenever::Output::Cron
+      end
+    end
 
     def cron_jobs
       return if @jobs.empty?
@@ -137,7 +147,7 @@ module Whenever
           next unless output_all || roles.any? do |r|
             job.has_role?(r)
           end
-          Whenever::Output::Cron.output(time, job) do |cron|
+          cron_class.output(time, job) do |cron|
             cron << "\n\n"
 
             if cron.starts_with?("@")

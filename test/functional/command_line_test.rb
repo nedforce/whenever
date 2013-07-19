@@ -172,6 +172,21 @@ NEW_CRON
       assert_equal "Whenever generated tasks for: DEFAULT", @command.send(:comment_base)
     end
   end
+  
+  context "A command line read" do
+    setup do
+      File.expects(:exists?).with('config/schedule.rb').returns(true)
+      @command = Whenever::CommandLine.new(:read => true)
+    end
+
+    should "return the existing crontab" do
+      existing = '# Existing crontab'
+      @command.expects(:read_crontab).returns(existing)
+      @command.expects(:puts).with(existing)
+      @command.expects(:exit).returns(true)      
+      assert @command.run
+    end
+  end
 
   context "combined params" do
     setup do

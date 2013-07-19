@@ -3,22 +3,24 @@ require 'chronic'
 module Whenever
   module Output
     class Cron
-      KEYWORDS = [:reboot, :yearly, :annually, :monthly, :weekly, :daily, :midnight, :hourly]
-      REGEX = /^(@(#{KEYWORDS.join '|'})|.+\s+.+\s+.+\s+.+\s+.+.?)$/
+
+      def self.keywords;  @keywords ||= [:reboot, :yearly, :annually, :monthly, :weekly, :daily, :midnight, :hourly]  end
+      def self.regex;     @regex ||= /^(@(#{keywords.join '|'})|.+\s+.+\s+.+\s+.+\s+.+.?)$/ end
 
       attr_accessor :time, :task
 
-      def initialize(time = nil, task = nil, at = nil)
+      def initialize(time = nil, task = nil, at = nil, with = nil)
         @at_given = at
         @time = time
         @task = task
         @at   = at.is_a?(String) ? (Chronic.parse(at) || 0) : (at || 0)
+        @with = Array.wrap(with)
       end
 
       def self.enumerate(item, detect_cron = true)
         if item and item.is_a?(String)
           items =
-            if detect_cron && item =~ REGEX
+            if detect_cron && item =~ regex
               [item]
             else
               item.split(',')
@@ -33,7 +35,7 @@ module Whenever
       def self.output(times, job)
         enumerate(times).each do |time|
           enumerate(job.at, false).each do |at|
-            yield new(time, job.output, at).output
+            yield new(time, job.output, at, job.with).output
           end
         end
       end
@@ -44,41 +46,42 @@ module Whenever
 
       def time_in_cron_syntax
         case @time
-          when REGEX  then @time # raw cron sytax given
+          when self.class.regex then @time # raw cron sytax given
           when Symbol then parse_symbol
           when String then parse_as_string
           else parse_time
         end
       end
 
-    protected
+      protected
+      
+      def at_given?
+        @at.is_a?(Time) || (@at.is_a?(Numeric) && @at > 0)
+      end      
+    
       def day_given?
         months = %w(jan feb mar apr may jun jul aug sep oct nov dec)
         @at_given.is_a?(String) && months.any? { |m| @at_given.downcase.index(m) }
       end
+      
+      def comma_separated_timing(frequency, max, start = 0)
+        return start     if frequency.blank? || frequency.zero?
+        return '*'       if frequency == 1
+        return frequency if frequency > (max * 0.5).ceil
+
+        original_start = start
+
+        start += frequency unless (max + 1).modulo(frequency).zero? || start > 0
+        output = (start..max).step(frequency).to_a
+
+        max_occurances = (max.to_f  / (frequency.to_f)).round
+        max_occurances += 1 if original_start.zero?
+
+        output[0, max_occurances].join(',')
+      end      
 
       def parse_symbol
-        shortcut = case @time
-          when *KEYWORDS then "@#{@time}" # :reboot => '@reboot'
-          when :year     then 12.months
-          when :day      then 1.day
-          when :month    then 1.month
-          when :week     then 1.week
-          when :hour     then 1.hour
-        end
-
-        if shortcut.is_a?(Numeric)
-          @time = shortcut
-          parse_time
-        elsif shortcut
-          if @at.is_a?(Time) || (@at.is_a?(Numeric) && @at > 0)
-            raise ArgumentError, "You cannot specify an ':at' when using the shortcuts for times."
-          else
-            return shortcut
-          end
-        else
-          parse_as_string
-        end
+        raise 'No implementation for parse_symbol'
       end
 
       def parse_time
@@ -132,21 +135,29 @@ module Whenever
         raise ArgumentError, "Couldn't parse: #{@time}"
       end
 
-      def comma_separated_timing(frequency, max, start = 0)
-        return start     if frequency.blank? || frequency.zero?
-        return '*'       if frequency == 1
-        return frequency if frequency > (max * 0.5).ceil
+      def parse_symbol
+        shortcut = case @time
+          when *self.class.keywords then "@#{@time}" # :reboot => '@reboot'
+          when :year     then 12.months
+          when :day      then 1.day
+          when :month    then 1.month
+          when :week     then 1.week
+          when :hour     then 1.hour
+        end
 
-        original_start = start
-
-        start += frequency unless (max + 1).modulo(frequency).zero? || start > 0
-        output = (start..max).step(frequency).to_a
-
-        max_occurances = (max.to_f  / (frequency.to_f)).round
-        max_occurances += 1 if original_start.zero?
-
-        output[0, max_occurances].join(',')
-      end
+        if shortcut.is_a?(Numeric)
+          @time = shortcut
+          parse_time
+        elsif shortcut
+          if at_given?
+            raise ArgumentError, "You cannot specify an ':at' when using the shortcuts for times."
+          else
+            return shortcut
+          end
+        else
+          parse_as_string
+        end
+      end      
     end
   end
 end

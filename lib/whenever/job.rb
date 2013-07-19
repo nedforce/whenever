@@ -2,11 +2,12 @@ require 'shellwords'
 
 module Whenever
   class Job
-    attr_reader :at, :roles
+    attr_reader :at, :with, :roles
 
     def initialize(options = {})
       @options = options
       @at                               = options.delete(:at)
+      @with                             = options.delete(:with)      
       @template                         = options.delete(:template)
       @job_template                     = options.delete(:job_template) || ":job"
       @roles                            = Array.wrap(options.delete(:roles))

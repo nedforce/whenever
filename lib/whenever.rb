@@ -7,8 +7,9 @@ module Whenever
   autoload :CommandLine,       'whenever/command_line'
 
   module Output
-    autoload :Cron,        'whenever/cron'
-    autoload :Redirection, 'whenever/output_redirection'
+    autoload :Cron,        'whenever/output/cron'
+    autoload :Fcron,       'whenever/output/fcron'    
+    autoload :Redirection, 'whenever/output/redirection'
   end
 
   def self.cron(options)
