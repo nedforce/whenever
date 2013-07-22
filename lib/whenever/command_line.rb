@@ -96,23 +96,26 @@ module Whenever
       end
     end
     
-    def updated_crontab   
+    def updated_crontab
+      current_crontab = read_crontab
+      current_crontab.sub!(/.+\n/, '') if @options[:cron] == 'fcron' # First line of fcron list command is '<timestamp> listing <users>'s fcrontab'
+      
       # Check for unopened or unclosed identifier blocks
-      if read_crontab =~ Regexp.new("^#{comment_open}\s*$") && (read_crontab =~ Regexp.new("^#{comment_close}\s*$")).nil?
+      if current_crontab =~ Regexp.new("^#{comment_open}\s*$") && (current_crontab =~ Regexp.new("^#{comment_close}\s*$")).nil?
         warn "[fail] Unclosed indentifier; Your crontab file contains '#{comment_open}', but no '#{comment_close}'"
         exit(1)
-      elsif (read_crontab =~ Regexp.new("^#{comment_open}\s*$")).nil? && read_crontab =~ Regexp.new("^#{comment_close}\s*$")
+      elsif (current_crontab =~ Regexp.new("^#{comment_open}\s*$")).nil? && current_crontab =~ Regexp.new("^#{comment_close}\s*$")
         warn "[fail] Unopened indentifier; Your crontab file contains '#{comment_close}', but no '#{comment_open}'"
         exit(1)
       end
       
       # If an existing identier block is found, replace it with the new cron entries
-      if read_crontab =~ Regexp.new("^#{comment_open}\s*$") && read_crontab =~ Regexp.new("^#{comment_close}\s*$")
+      if current_crontab =~ Regexp.new("^#{comment_open}\s*$") && current_crontab =~ Regexp.new("^#{comment_close}\s*$")
         # If the existing crontab file contains backslashes they get lost going through gsub.
         # .gsub('\\', '\\\\\\') preserves them. Go figure.
-        read_crontab.gsub(Regexp.new("^#{comment_open}\s*$.+^#{comment_close}\s*$", Regexp::MULTILINE), whenever_cron.chomp.gsub('\\', '\\\\\\'))
+        current_crontab.gsub(Regexp.new("^#{comment_open}\s*$.+^#{comment_close}\s*$", Regexp::MULTILINE), whenever_cron.chomp.gsub('\\', '\\\\\\'))
       else # Otherwise, append the new cron entries after any existing ones
-        [read_crontab, whenever_cron].join("\n\n")
+        [current_crontab, whenever_cron].join("\n\n")
       end.gsub(/\n{3,}/, "\n\n") # More than two newlines becomes just two.
     end
     
