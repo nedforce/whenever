@@ -54,7 +54,9 @@ module Whenever
             time_in_cron = time_in_cron[1..-1].strip
           when '%'
             @modifier = "#{time_in_cron[/^%[a-z]+/]},"
-            time_in_cron = time_in_cron.sub(/^%[a-z]+/, '').strip            
+            time_in_cron = time_in_cron.sub(/^%[a-z]+/, '').strip
+          else
+            @modifier = '&'
         end
         
         time_in_cron
