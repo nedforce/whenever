@@ -3,7 +3,7 @@ $:.push File.expand_path("../lib", __FILE__)
 require "whenever/version"
 
 Gem::Specification.new do |s|
-  s.name        = "whenever"
+  s.name        = "nedforce-whenever"
   s.version     = Whenever::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Javan Makhmali"]
