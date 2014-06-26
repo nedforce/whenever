@@ -8,7 +8,7 @@ module Whenever
 
   module Output
     autoload :Cron,        'whenever/output/cron'
-    autoload :Fcron,       'whenever/output/fcron'    
+    autoload :Fcron,       'whenever/output/fcron'
     autoload :Redirection, 'whenever/output/redirection'
   end
 

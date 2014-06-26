@@ -3,15 +3,15 @@ module Whenever
     attr_reader :roles
 
     def initialize(options)
-      @jobs, @env, @set_variables, @pre_set_variables = {}, {}, {}, {}
+      @jobs, @env, @set_variables, @pre_set_variables, @global_options = {}, {}, {}, {}, {}
 
       if options.is_a? String
         options = { :string => options }
       end
 
       pre_set(options[:set])
-      
-      @cron = options[:cron]      
+
+      @cron = options[:cron]
       @roles = options[:roles] || []
 
       setup_file = File.expand_path('../setup.rb', __FILE__)
@@ -39,6 +39,10 @@ module Whenever
       @env[variable.to_s] = value
     end
 
+    def with(option, value = nil)
+      @global_options[option.to_s] = value
+    end
+
     def every(frequency, options = {})
       @current_time_scope = frequency
       @options = options
@@ -63,7 +67,7 @@ module Whenever
     end
 
     def generate_cron_output
-      [environment_variables, cron_jobs].compact.join
+      [environment_variables, global_options, cron_jobs].compact.join
     end
 
   private
@@ -88,6 +92,18 @@ module Whenever
       end
     end
 
+    def global_options
+      return nil if !@cron == 'fcron' || @global_options.empty?
+
+      output = []
+      @global_options.each do |option, val|
+        output << "!#{option}#{"(#{val})" if val.present?}\n"
+      end
+      output << "\n"
+
+      output.join
+    end
+
     def environment_variables
       return if @env.empty?
 
@@ -108,7 +124,7 @@ module Whenever
     #
     def combine(entries)
       return entries if @cron == 'fcron'
-      
+
       entries.map! { |entry| entry.split(/ +/, 6) }
       0.upto(4) do |f|
         (entries.length-1).downto(1) do |i|
@@ -127,7 +143,7 @@ module Whenever
 
       entries.map { |entry| entry.join(' ') }
     end
-    
+
     def cron_class
       case @cron
         when 'fcron' then Whenever::Output::Fcron
